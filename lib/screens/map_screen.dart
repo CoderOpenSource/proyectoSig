@@ -135,15 +135,8 @@ class _MapScreen2State extends State<MapScreen2> {
     final searchBloc = BlocProvider.of<SearchBloc>(context);
 
     LatLng? currentPosition;
-    if (locationBloc.state.lastKnownLocation != null) {
-      currentPosition = LatLng(
-        locationBloc.state.lastKnownLocation!.latitude,
-        locationBloc.state.lastKnownLocation!.longitude,
-      );
-    } else {
-      print('No se pudo obtener la posición actual del usuario');
-      return;
-    }
+
+    currentPosition = LatLng(-17.776373, -63.195093);
 
     List<Map<String, String>> limitedMedidores = widget.medidores.length > 25
         ? widget.medidores.sublist(0, 25)
@@ -269,14 +262,10 @@ class _MapScreen2State extends State<MapScreen2> {
       ),
       body: BlocBuilder<LocationBloc, LocationState>(
         builder: (context, locationState) {
-          if (locationState.lastKnownLocation == null) {
-            return const Center(child: Text('Espere por favor...'));
-          }
-
           return Stack(
             children: [
               MapView(
-                initialLocation: locationBloc.state.lastKnownLocation!,
+                initialLocation: LatLng(-17.776373, -63.195093),
                 polylines: polylines.toSet(),
                 markers: markers.toSet(),
               )

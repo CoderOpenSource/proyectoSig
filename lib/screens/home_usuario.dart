@@ -71,9 +71,6 @@ class _MapScreenState extends State<MapScreen>
 
     locationBloc = BlocProvider.of<LocationBloc>(context);
 
-
-    locationBloc.startFollowingUser();
-
   }
 
 
@@ -105,13 +102,6 @@ class _MapScreenState extends State<MapScreen>
 
         builder: (context, locationState) {
 
-          if (locationState.lastKnownLocation == null) {
-
-            return const Center(child: Text('Espere por favor...'));
-
-          }
-
-
           return BlocBuilder<MapBloc, MapState>(
 
             builder: (context, mapState) {
@@ -132,7 +122,7 @@ class _MapScreenState extends State<MapScreen>
 
                   MapView(
 
-                    initialLocation: locationState.lastKnownLocation!,
+                    initialLocation: LatLng(-17.776373, -63.195093),
 
                     polylines: polylines.values.toSet(),
 
