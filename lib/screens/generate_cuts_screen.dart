@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mapas_api/screens/home_pasajero.dart';
+import 'package:mapas_api/screens/home_usuario.dart';
 import 'package:mapas_api/screens/map_screen.dart';
 import 'package:xml/xml.dart' as xml;
 

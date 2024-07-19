@@ -5,7 +5,7 @@ import 'package:mapas_api/blocs/blocs.dart';
 import 'package:mapas_api/helpers/widgets_to_marker.dart';
 import 'package:mapas_api/models/medidor.dart';
 import 'package:mapas_api/models/route_destination.dart';
-import 'package:mapas_api/screens/home_pasajero.dart';
+import 'package:mapas_api/screens/home_usuario.dart';
 import 'package:mapas_api/screens/register_cut_screen.dart';
 import 'package:mapas_api/services/apiGoogle.dart';
 import 'package:mapas_api/views/map_view.dart';
@@ -26,8 +26,11 @@ class _MapScreen2State extends State<MapScreen2> {
 
   Set<Polyline> polylines = {};
   Set<Marker> markers = {};
-  List<bool> medidorCortado =
-      List<bool>.filled(25, false); // Inicializar la lista con 25 falsos
+  List<Map<String, dynamic>> medidorCortado =
+      List<Map<String, dynamic>>.generate(
+    25,
+    (index) => {'isCut': false, 'cutDate': DateTime.now().toString()},
+  ); // Inicializar la lista con 25 elementos con isCut: false y cutDate: null
 
   @override
   void initState() {
@@ -55,7 +58,7 @@ class _MapScreen2State extends State<MapScreen2> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                medidorCortado[index]
+                medidorCortado[index]['isCut']
                     ? 'Este medidor ya ha sido cortado'
                     : 'Registrar Corte para ${medidor.nomb}',
                 style: const TextStyle(
@@ -75,7 +78,7 @@ class _MapScreen2State extends State<MapScreen2> {
               ),
               const SizedBox(height: 20),
               ElevatedButton.icon(
-                onPressed: medidorCortado[index]
+                onPressed: medidorCortado[index]['isCut']
                     ? null
                     : () async {
                         Navigator.pop(context);
@@ -88,13 +91,17 @@ class _MapScreen2State extends State<MapScreen2> {
                         );
                         if (result == true) {
                           setState(() {
-                            medidorCortado[index] = true;
+                            print('cortado');
+                            medidorCortado[index] = {
+                              'isCut': true,
+                              'cutDate': DateTime.now().toString()
+                            };
                           });
                         }
                       },
                 icon: Icon(Icons.check, color: Theme.of(context).primaryColor),
                 label: Text(
-                  medidorCortado[index]
+                  medidorCortado[index]['isCut']
                       ? 'Medidor ya cortado'
                       : 'Registrar Corte',
                   style: TextStyle(color: Theme.of(context).primaryColor),
@@ -256,7 +263,10 @@ class _MapScreen2State extends State<MapScreen2> {
       appBar: AppBar(
         title: const Text('Mapa de Recorrido de Cortes'),
       ),
-      drawer: const AppDrawer(),
+      drawer: AppDrawer(
+        medidores: widget.medidores,
+        medidorCortado: medidorCortado,
+      ),
       body: BlocBuilder<LocationBloc, LocationState>(
         builder: (context, locationState) {
           if (locationState.lastKnownLocation == null) {

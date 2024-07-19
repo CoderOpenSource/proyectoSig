@@ -111,26 +111,30 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
       body: soapRequest.trim(), // Asegúrate de que no haya espacios en blanco
     );
 
-    if (response.statusCode == 200) {
-      print('Corte registrado correctamente');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Corte registrado correctamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      await Future.delayed(const Duration(seconds: 3)); // Esperar 3 segundos
-      if (mounted) {
-        Navigator.pop(context, true); // Indicar que se ha registrado el corte
-      } // Regresar y pasar true como resultado
-    } else {
-      print('Error al registrar el corte: ${response.body}');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al registrar el corte'),
-          backgroundColor: Colors.red,
-        ),
-      );
+    if (mounted) {
+      if (response.statusCode == 200) {
+        print('Corte registrado correctamente');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Corte registrado correctamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        await Future.delayed(const Duration(seconds: 3)); // Esperar 3 segundos
+        if (mounted) {
+          Navigator.pop(context, true); // Indicar que se ha registrado el corte
+        }
+      } else {
+        print('Error al registrar el corte: ${response.body}');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error al registrar el corte'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -292,7 +296,8 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
                   style: TextStyle(color: primaryColor),
                 ),
                 style: ElevatedButton.styleFrom(
-                  foregroundColor: primaryColor, backgroundColor: Colors.white,
+                  foregroundColor: primaryColor,
+                  backgroundColor: Colors.white,
                   side: BorderSide(color: primaryColor),
                   padding: const EdgeInsets.symmetric(vertical: 16),
                   shape: RoundedRectangleBorder(

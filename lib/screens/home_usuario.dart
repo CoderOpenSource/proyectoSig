@@ -16,6 +16,9 @@ import 'package:mapas_api/screens/configuration.dart';
 import 'package:mapas_api/screens/generate_cuts_screen.dart';
 
 
+import 'package:mapas_api/screens/generated_cuts_screen.dart';
+
+
 import 'package:mapas_api/screens/loading_screen.dart';
 
 
@@ -219,7 +222,13 @@ void _showImagePreview(BuildContext context, String imageUrl) {
 
 class AppDrawer extends StatefulWidget {
 
-  const AppDrawer({super.key});
+  final List<Map<String, String>>? medidores;
+
+
+  final List<Map<String, dynamic>>? medidorCortado;
+
+
+  const AppDrawer({super.key, this.medidores, this.medidorCortado});
 
 
   @override
@@ -354,6 +363,40 @@ class _AppDrawerState extends State<AppDrawer> {
                 MaterialPageRoute(
 
                     builder: (context) => const GenerateCutsScreen()),
+
+              );
+
+            },
+
+          ),
+
+          ListTile(
+
+            leading: Icon(Icons.check, color: Theme.of(context).primaryColor),
+
+            title: Text(
+
+              'Ver Cortes Generados',
+
+              style: TextStyle(color: Theme.of(context).primaryColor),
+
+            ),
+
+            onTap: () {
+
+              Navigator.of(context).push(
+
+                MaterialPageRoute(
+
+                  builder: (context) => GeneratedCutsScreen(
+
+                    medidores: widget.medidores,
+
+                    medidorCortado: widget.medidorCortado,
+
+                  ),
+
+                ),
 
               );
 

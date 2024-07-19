@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:mapas_api/screens/home_pasajero.dart';
+import 'package:mapas_api/screens/home_usuario.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({Key? key}) : super(key: key);

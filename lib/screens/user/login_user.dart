@@ -16,6 +16,7 @@ class _LoginViewState extends State<LoginView> {
   bool _obscureText = true;
   bool _isLoading = false;
   String? _error;
+
   Future<Map<String, String>?> validarLogin(
       String username, String password) async {
     const url = 'http://190.171.244.211:8080/wsVarios/wsad.asmx';
@@ -156,10 +157,10 @@ class _LoginViewState extends State<LoginView> {
         await prefs.setString('userName', name);
         await prefs.setInt('registro', registro);
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Usuario verificado con éxito'),
+          SnackBar(
+            content: const Text('Usuario verificado con éxito'),
             backgroundColor: Colors.lightBlue,
-            duration: Duration(seconds: 2),
+            duration: const Duration(seconds: 2),
           ),
         );
 
@@ -247,7 +248,7 @@ class _LoginViewState extends State<LoginView> {
                         fontSize: 32, // Tamaño del texto
                         fontWeight: FontWeight.bold, // Grosor de la letra
                         color:
-                            const Color.fromARGB(255, 2, 40, 69), // Color del texto
+                            Color.fromARGB(255, 2, 40, 69), // Color del texto
                         shadows: [
                           Shadow(
                             blurRadius: 10.0,
