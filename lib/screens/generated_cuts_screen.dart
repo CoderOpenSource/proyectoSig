@@ -1,89 +1,113 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:mapas_api/helpers/cortes/database_helper.dart';
+import 'package:mapas_api/widgets/app_drawer.dart';
 
 class GeneratedCutsScreen extends StatelessWidget {
-  final List<Map<String, dynamic>>? medidorCortado;
-  final List<Map<String, String>>? medidores;
+  const GeneratedCutsScreen({Key? key}) : super(key: key);
 
-  const GeneratedCutsScreen({
-    Key? key,
-    this.medidorCortado,
-    this.medidores,
-  }) : super(key: key);
+  Future<List<Map<String, dynamic>>> getCortesCortados() async {
+    final dbHelper = DatabaseHelper.instance;
+    return await dbHelper.getCortesCortados();
+  }
+
+  String formatFechaCorte(String? fechaCorte) {
+    if (fechaCorte == null) return 'Fecha no disponible';
+    try {
+      final DateTime parsedDate = DateTime.parse(fechaCorte);
+      return DateFormat('dd/MM/yyyy HH:mm')
+          .format(parsedDate); // Ejemplo: 28/11/2024 14:30
+    } catch (e) {
+      return 'Formato de fecha inválido';
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    if (medidorCortado == null ||
-        medidores == null ||
-        medidorCortado!.isEmpty ||
-        medidores!.isEmpty) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Cortes Generados')),
-        body: const Center(
-          child: Text('Aún no se han registrados medidores cortados'),
-        ),
-      );
-    }
-
-    List<Map<String, String>> cortadosMedidores = [];
-    for (int i = 0; i < medidorCortado!.length; i++) {
-      if (medidorCortado![i]['isCut']) {
-        cortadosMedidores.add(medidores![i]);
-      }
-    }
-
     return Scaffold(
-      appBar: AppBar(title: const Text('Cortes Generados')),
-      body: ListView.builder(
-        itemCount: cortadosMedidores.length,
-        itemBuilder: (context, index) {
-          final medidor = cortadosMedidores[index];
-          final cutDate =
-              medidorCortado![index]['cutDate'] ?? 'Fecha no disponible';
-          return Card(
-            margin: const EdgeInsets.all(10),
-            child: ListTile(
-              leading: const Icon(Icons.warning, color: Colors.red),
-              title: Text(
-                medidor['dNomb'] ?? 'Nombre no disponible',
-                style:
-                    const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-              ),
-              subtitle: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    medidor['dLotes'] == '. . .'
-                        ? 'No disponible'
-                        : medidor['dLotes'] ?? 'Dirección no disponible',
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                  Text(
-                    'C.F: ${medidor['bscocNcnt'] ?? '0'}',
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                  Text(
-                    'C.U.: ${medidor['bscntCodf'] ?? '0'}',
-                    style: TextStyle(color: Colors.grey[700]),
-                  ),
-                  Text(
-                    'Fecha de Corte: $cutDate',
-                    style: TextStyle(color: Colors.grey[700]),
-                  )
-                ],
-              ),
-              trailing: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.warning, color: Colors.red),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Cortado',
+      appBar: AppBar(
+        title: const Text('Cortes Generados'),
+        backgroundColor: const Color.fromARGB(255, 10, 0, 40),
+      ),
+      drawer: const AppDrawer(),
+      body: FutureBuilder<List<Map<String, dynamic>>>(
+        future: getCortesCortados(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          }
+
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Error: ${snapshot.error}'),
+            );
+          }
+
+          final cortadosMedidores = snapshot.data;
+
+          if (cortadosMedidores == null || cortadosMedidores.isEmpty) {
+            return const Center(
+              child: Text('Aún no se han registrados medidores cortados'),
+            );
+          }
+
+          return ListView.builder(
+            itemCount: cortadosMedidores.length,
+            itemBuilder: (context, index) {
+              final medidor = cortadosMedidores[index];
+              return Card(
+                margin: const EdgeInsets.all(10),
+                child: ListTile(
+                  leading: const Icon(Icons.warning, color: Colors.red),
+                  title: Text(
+                    medidor['dNomb'] ?? 'Nombre no disponible',
                     style: const TextStyle(
-                        color: Colors.black, fontWeight: FontWeight.bold),
+                      fontWeight: FontWeight.bold,
+                      fontSize: 16,
+                    ),
                   ),
-                ],
-              ),
-            ),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        medidor['dLotes'] == '. . .'
+                            ? 'No disponible'
+                            : medidor['dLotes'] ?? 'Dirección no disponible',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                      Text(
+                        'C.F: ${medidor['bscocNcnt'] ?? '0'}',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                      Text(
+                        'C.U.: ${medidor['bscntCodf'] ?? '0'}',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                      Text(
+                        'Fecha de Corte: ${formatFechaCorte(medidor['fechaCorte'])}',
+                        style: TextStyle(color: Colors.grey[700]),
+                      ),
+                    ],
+                  ),
+                  trailing: const Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.warning, color: Colors.red),
+                      SizedBox(height: 4),
+                      Text(
+                        'Cortado',
+                        style: TextStyle(
+                          color: Colors.black,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
           );
         },
       ),

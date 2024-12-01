@@ -2,13 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:mapas_api/blocs/blocs.dart';
+import 'package:mapas_api/helpers/cortes/database_helper.dart';
 import 'package:mapas_api/helpers/widgets_to_marker.dart';
+import 'package:mapas_api/markers/cortado_marker.dart';
 import 'package:mapas_api/models/medidor.dart';
 import 'package:mapas_api/models/route_destination.dart';
-import 'package:mapas_api/screens/home_usuario.dart';
 import 'package:mapas_api/screens/register_cut_screen.dart';
 import 'package:mapas_api/services/apiGoogle.dart';
 import 'package:mapas_api/views/map_view.dart';
+import 'package:mapas_api/widgets/app_drawer.dart';
 import 'package:mapas_api/widgets/widgets.dart';
 
 class MapScreen2 extends StatefulWidget {
@@ -26,6 +28,11 @@ class _MapScreen2State extends State<MapScreen2> {
 
   Set<Polyline> polylines = {};
   Set<Marker> markers = {};
+  double totalDistance = 0.0; // Distancia acumulada en metros
+  int totalDuration = 0; // Duración acumulada en minutos
+  int totalMedidores = 0;
+  int cortados = 0;
+
   List<Map<String, dynamic>> medidorCortado =
       List<Map<String, dynamic>>.generate(
     25,
@@ -45,11 +52,56 @@ class _MapScreen2State extends State<MapScreen2> {
     super.dispose();
   }
 
+  void _updateMarkerToCut(Medidor medidor, int index) async {
+    final markerId = MarkerId('end_$index');
+
+    // Remueve el marcador antiguo
+    markers.removeWhere((marker) => marker.markerId == markerId);
+
+    // Crear un marcador con un ícono personalizado
+    final customIcon = await CustomMarkerHelper.createCustomMarkerIcon(
+      index + 1,
+      'Cortado',
+      medidor.ncnt.toString(),
+      medidor.nomb,
+    );
+
+    final updatedMarker = Marker(
+      markerId: markerId,
+      position: LatLng(medidor.lat, medidor.lng),
+      infoWindow: InfoWindow(
+        title: 'Cortado',
+        snippet: 'Cuenta: ${medidor.ncnt}\nNombre: ${medidor.nomb}',
+      ),
+      icon: customIcon, // Ícono personalizado
+      onTap: () {
+        _showRegisterCutModal(context, medidor, index);
+      },
+    );
+
+    // Añade el marcador actualizado
+    setState(() {
+      markers.add(updatedMarker);
+      cortados++;
+    });
+
+    print(
+        'Marcador personalizado actualizado para medidor ${medidor.nomb} (Index $index)');
+  }
+
   void _showRegisterCutModal(BuildContext context, Medidor medidor, int index) {
+    // Imprime los datos del medidor al abrir el modal
+    print('Datos del medidor (Index $index):');
+    print('Id: ${medidor.id}');
+    print('Nombre: ${medidor.nomb}');
+    print('Cuenta: ${medidor.ncnt}');
+    print('Latitud: ${medidor.lat}');
+    print('Longitud: ${medidor.lng}');
+
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      backgroundColor: Theme.of(context).primaryColor,
+      backgroundColor: Color.fromARGB(255, 10, 0, 40),
       builder: (BuildContext context) {
         return Padding(
           padding: const EdgeInsets.all(16.0),
@@ -82,6 +134,8 @@ class _MapScreen2State extends State<MapScreen2> {
                     ? null
                     : () async {
                         Navigator.pop(context);
+
+                        // Registrar el corte y verificar el éxito
                         final result = await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -89,22 +143,37 @@ class _MapScreen2State extends State<MapScreen2> {
                                 medidor: medidor, index: index),
                           ),
                         );
+
                         if (result == true) {
                           setState(() {
-                            print('cortado');
+                            print('Medidor marcado como cortado');
                             medidorCortado[index] = {
                               'isCut': true,
                               'cutDate': DateTime.now().toString()
                             };
                           });
+
+                          // Actualizar el estado en la base de datos
+                          final dbHelper = DatabaseHelper.instance;
+                          await dbHelper.updateCortado(
+                            medidor.id,
+                            true,
+                            fechaCorte: DateTime.now()
+                                .toIso8601String(), // Registrar la fecha actual en formato ISO 8601
+                          );
+                          print(
+                              'Base de datos actualizada para medidor con ID: ${medidor.id}');
+
+                          // Actualizar el marcador en el mapa
+                          _updateMarkerToCut(medidor, index);
                         }
                       },
-                icon: Icon(Icons.check, color: Theme.of(context).primaryColor),
+                icon: Icon(Icons.check, color: Color.fromARGB(255, 10, 0, 40)),
                 label: Text(
                   medidorCortado[index]['isCut']
                       ? 'Medidor ya cortado'
                       : 'Registrar Corte',
-                  style: TextStyle(color: Theme.of(context).primaryColor),
+                  style: TextStyle(color: Color.fromARGB(255, 10, 0, 40)),
                 ),
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Theme.of(context).primaryColor,
@@ -114,13 +183,13 @@ class _MapScreen2State extends State<MapScreen2> {
               const SizedBox(height: 10),
               ElevatedButton.icon(
                 onPressed: () => Navigator.pop(context),
-                icon: Icon(Icons.close, color: Theme.of(context).primaryColor),
+                icon: Icon(Icons.close, color: Color.fromARGB(255, 10, 0, 40)),
                 label: Text(
                   'Cerrar',
-                  style: TextStyle(color: Theme.of(context).primaryColor),
+                  style: TextStyle(color: Color.fromARGB(255, 10, 0, 40)),
                 ),
                 style: ElevatedButton.styleFrom(
-                  foregroundColor: Theme.of(context).primaryColor,
+                  foregroundColor: Color.fromARGB(255, 10, 0, 40),
                   backgroundColor: Colors.white,
                 ),
               ),
@@ -134,21 +203,27 @@ class _MapScreen2State extends State<MapScreen2> {
   Future<void> _drawRoutes() async {
     final searchBloc = BlocProvider.of<SearchBloc>(context);
 
-    LatLng? currentPosition;
-
-    currentPosition = LatLng(-17.776373, -63.195093);
+    LatLng? currentPosition = const LatLng(-17.776373, -63.195093);
 
     List<Map<String, String>> limitedMedidores = widget.medidores.length > 25
         ? widget.medidores.sublist(0, 25)
         : widget.medidores;
 
+    totalMedidores = limitedMedidores.length;
+
     List<Map<String, String>> orderedMedidores =
         await orderMedidoresByProximity(
-            'AIzaSyCd_nuPnvC-us0y3niaIt7vsbrkcyxqUik',
+            'AIzaSyC5s1oHt0a6THXOSO_iHWrbBM6YYU1I88g',
             currentPosition,
             limitedMedidores);
 
     print('Número de medidores ordenados: ${orderedMedidores.length}');
+
+    totalDistance = 0.0; // Reiniciar distancia total
+    totalDuration = 0; // Reiniciar duración total
+
+    const double speedKmPerHour = 15.0; // Velocidad constante en km/h
+
     for (var i = 0; i < orderedMedidores.length; i++) {
       print('Medidor $i ${orderedMedidores[i]}');
       var start = i == 0
@@ -164,12 +239,39 @@ class _MapScreen2State extends State<MapScreen2> {
       try {
         final destination = await searchBloc.getCoorsStartToEnd(start, end);
         print('Ruta calculada para el marcador $i');
+
+        // Acumular distancia y duración solo desde el marcador 1
+        if (i > 0) {
+          // Acumular distancia
+          totalDistance += destination.distance;
+
+          // Calcular tiempo de viaje a velocidad constante (en horas)
+          double distanceInKm = destination.distance / 1000.0; // Convertir a km
+          double travelTimeInHours = distanceInKm / speedKmPerHour;
+          int travelTimeInSeconds = (travelTimeInHours * 3600).toInt();
+
+          // Sumar duración al total
+          totalDuration += travelTimeInSeconds; // Tiempo de viaje
+          totalDuration +=
+              600; // 10 minutos adicionales (600 segundos) por marcador
+        }
+
         await _drawRoutePolyline(destination, i,
             'C.F.: ${endMedidor.ncnt} ${endMedidor.nomb}', endMedidor);
       } catch (e) {
         print('Error al calcular la ruta: $e');
       }
     }
+
+    // Mostrar distancia y duración totales desde el marcador 1
+    print(
+        'Distancia total desde marcador 1: ${totalDistance.toStringAsFixed(2)} metros');
+    print('Duración total desde marcador 1: ${totalDuration / 60} minutos');
+
+    setState(() {
+      totalDistance = totalDistance; // Actualizar la variable de clase
+      totalDuration = totalDuration ~/ 60; // Guardar duración en minutos
+    });
   }
 
   Future<void> _drawRoutePolyline(RouteDestination destination, int index,
@@ -252,9 +354,19 @@ class _MapScreen2State extends State<MapScreen2> {
 
   @override
   Widget build(BuildContext context) {
+    double hours = totalDuration / 60;
+    print('Total Duration $totalDuration');
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mapa de Recorrido de Cortes'),
+        title: const Row(
+          children: [
+            Icon(Icons.water_drop, color: Colors.white), // Ícono de agua
+            SizedBox(width: 8), // Espacio entre el ícono y el texto
+            Text('MAPA DE CORTES'),
+          ],
+        ),
+        backgroundColor:
+            const Color.fromARGB(255, 10, 0, 40), // Fondo azul oscuro
       ),
       drawer: AppDrawer(
         medidores: widget.medidores,
@@ -265,9 +377,119 @@ class _MapScreen2State extends State<MapScreen2> {
           return Stack(
             children: [
               MapView(
-                initialLocation: LatLng(-17.776373, -63.195093),
+                initialLocation: const LatLng(-17.776373, -63.195093),
                 polylines: polylines.toSet(),
                 markers: markers.toSet(),
+              ),
+              Positioned(
+                bottom: 20,
+                left: MediaQuery.of(context).size.width *
+                    0.05, // Centrar el widget
+                right: MediaQuery.of(context).size.width * 0.2,
+                child: Card(
+                  elevation: 8,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  color: const Color.fromARGB(255, 10, 0, 40),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                        vertical: 15, horizontal: 20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Tiempo:',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            // Convierte minutos a horas decimales
+                            Text(
+                              '${hours.toStringAsFixed(2)} hrs',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Distancia:',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '${totalDistance.toStringAsFixed(0)} mts',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Total:',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '$totalMedidores', // totalMedidores es de tipo int
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 5),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Text(
+                              'Cortados:',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            Text(
+                              '$cortados', // cortados es de tipo int
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               )
             ],
           );
@@ -280,7 +502,7 @@ class _MapScreen2State extends State<MapScreen2> {
           Container(
             margin: const EdgeInsets.only(bottom: 10),
             child: CircleAvatar(
-              backgroundColor: Theme.of(context).primaryColor,
+              backgroundColor: Color.fromARGB(255, 10, 0, 40),
               maxRadius: 25,
               child: IconButton(
                 icon: const Icon(

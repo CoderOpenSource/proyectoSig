@@ -1,4 +1,5 @@
 class Medidor {
+  final int id; // Campo id
   final int ncoc;
   final int codf;
   final int ncnt;
@@ -12,8 +13,10 @@ class Medidor {
   final String ncat;
   final String cobc;
   final String lotes;
+  final String? fechaCorte; // Agregamos el campo fechaCorte como nulo
 
   Medidor({
+    required this.id, // Requerimos el id en el constructor
     required this.ncoc,
     required this.codf,
     required this.ncnt,
@@ -27,10 +30,12 @@ class Medidor {
     required this.ncat,
     required this.cobc,
     required this.lotes,
+    this.fechaCorte, // Permitimos que fechaCorte sea opcional
   });
 
-  factory Medidor.fromMap(Map<String, String> map) {
+  factory Medidor.fromMap(Map<String, dynamic> map) {
     return Medidor(
+      id: int.parse(map['id']!), // Parseamos el campo id desde el mapa
       ncoc: int.parse(map['bscocNcoc']!),
       codf: int.parse(map['bscntCodf']!),
       ncnt: int.parse(map['bscocNcnt']!),
@@ -44,6 +49,27 @@ class Medidor {
       ncat: map['dNcat']!,
       cobc: map['dCobc']!,
       lotes: map['dLotes']!,
+      fechaCorte: map['fechaCorte'], // Parseamos la fechaCorte si existe
     );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'bscocNcoc': ncoc,
+      'bscntCodf': codf,
+      'bscocNcnt': ncnt,
+      'dNomb': nomb,
+      'bscocNmor': nmor,
+      'bscocImor': imor,
+      'bsmednser': nser,
+      'bsmedNume': nume,
+      'bscntlati': lat,
+      'bscntlogi': lng,
+      'dNcat': ncat,
+      'dCobc': cobc,
+      'dLotes': lotes,
+      'fechaCorte': fechaCorte, // Incluimos la fechaCorte en el mapa
+    };
   }
 }

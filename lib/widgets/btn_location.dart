@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mapas_api/blocs/blocs.dart';
-import 'package:mapas_api/themes/light_theme.dart';
 import 'package:mapas_api/ui/ui.dart';
 
 class BtnCurrentLocation extends StatelessWidget {
@@ -14,7 +13,7 @@ class BtnCurrentLocation extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: CircleAvatar(
-        backgroundColor: lightUberTheme.primaryColor,
+        backgroundColor: const Color.fromARGB(255, 10, 0, 40),
         maxRadius: 25,
         child: IconButton(
           icon: const Icon(

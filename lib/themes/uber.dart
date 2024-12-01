@@ -73,7 +73,7 @@ const uberMapTheme = [
     "featureType": "poi",
     "elementType": "geometry",
     "stylers": [
-      {"hue": "#c17118"},
+      {"hue": "#2e8b57"},
       {"saturation": 61},
       {"lightness": -45},
       {"visibility": "on"}

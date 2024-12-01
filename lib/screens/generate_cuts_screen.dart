@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:mapas_api/screens/home_usuario.dart';
+import 'package:mapas_api/helpers/cortes/database_helper.dart';
+import 'package:mapas_api/models/cortes/corte.dart';
 import 'package:mapas_api/screens/map_screen.dart';
+import 'package:mapas_api/widgets/app_drawer.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xml/xml.dart' as xml;
 
 class GenerateCutsScreen extends StatefulWidget {
@@ -118,9 +121,44 @@ class _GenerateCutsScreenState extends State<GenerateCutsScreen> {
     }
   }
 
-  void parseMedidores(String xmlString) {
+  void parseMedidores(String xmlString) async {
+    setState(() {
+      isLoading = true;
+    });
+    final dbHelper = DatabaseHelper.instance;
+    final prefs = await SharedPreferences.getInstance();
+
+    // Verifica si la base de datos ya fue inicializada
+    final isDatabaseCreated = prefs.getBool('database_created') ?? false;
+
+    // Recuperar los cortes no cortados desde la base de datos
+    Future<void> cargarMedidoresNoCortados() async {
+      final cortesNoCortados = await dbHelper.getCortesPorEstado(false);
+      medidores = cortesNoCortados.map((corte) {
+        return corte.map((key, value) => MapEntry(key, value.toString()));
+      }).toList();
+
+      print('Medidores recuperados de la base de datos:');
+      for (var medidor in medidores) {
+        print(medidor);
+      }
+    }
+
+    if (isDatabaseCreated) {
+      print(
+          'La base de datos ya fue creada. Recuperando cortes no cortados...');
+      await cargarMedidoresNoCortados();
+      filterMedidores();
+      setState(() {
+        isLoading = false;
+      });
+      return;
+    }
+
+    // Procesar el XML para obtener medidores
     final document = xml.XmlDocument.parse(xmlString);
     final tables = document.findAllElements('Table');
+
     medidores = tables.map((table) {
       final Map<String, String> medidor = {};
       table.children.whereType<xml.XmlElement>().forEach((element) {
@@ -130,13 +168,48 @@ class _GenerateCutsScreenState extends State<GenerateCutsScreen> {
     }).where((medidor) {
       final lat = double.tryParse(medidor['bscntlati'] ?? '0.0') ?? 0.0;
       final lng = double.tryParse(medidor['bscntlogi'] ?? '0.0') ?? 0.0;
-      return lat != 0.0 && lng != 0.0;
+      return lat != 0.0 &&
+          lng != 0.0; // Filtrar medidores con coordenadas válidas
     }).toList();
-    print('Medidores parsed:');
+
+    print('Medidores parsed desde XML:');
     for (var medidor in medidores) {
       print(medidor);
+
+      // Convertir el medidor a un objeto Corte
+      final corte = Corte(
+        id: 0, // Será autoincrementado en la base de datos
+        bscocNcoc: medidor['bscocNcoc'] ?? '',
+        bscntCodf: medidor['bscntCodf'] ?? '',
+        bscocNcnt: medidor['bscocNcnt'] ?? '',
+        dNomb: medidor['dNomb'] ?? '',
+        bscocNmor: int.tryParse(medidor['bscocNmor'] ?? '0') ?? 0,
+        bscocImor: double.tryParse(medidor['bscocImor'] ?? '0.0') ?? 0.0,
+        bsmednser: medidor['bsmednser'] ?? '',
+        bsmedNume: medidor['bsmedNume'] ?? '',
+        bscntlati: double.tryParse(medidor['bscntlati'] ?? '0.0') ?? 0.0,
+        bscntlogi: double.tryParse(medidor['bscntlogi'] ?? '0.0') ?? 0.0,
+        dNcat: medidor['dNcat'] ?? '',
+        dCobc: medidor['dCobc'] ?? '',
+        dLotes: medidor['dLotes'] ?? '',
+        cortado: false, // Inicializar como no cortado
+        fechaCorte: null, // Inicializar la fecha de corte como null
+      );
+
+      // Guardar en la base de datos
+      await dbHelper.insertCorte(corte.toMap());
     }
-    filterMedidores();
+
+    // Marcar la base de datos como creada
+    await prefs.setBool('database_created', true);
+
+    print(
+        'Medidores guardados en la base de datos. Recuperando no cortados...');
+    await cargarMedidoresNoCortados();
+    filterMedidores(); // Filtrar los medidores si es necesario
+    setState(() {
+      isLoading = false;
+    });
   }
 
   void filterMedidores() {
@@ -183,7 +256,10 @@ class _GenerateCutsScreenState extends State<GenerateCutsScreen> {
             : filteredMedidores;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Generar Lista para Cortes')),
+      appBar: AppBar(
+        title: const Text('Generar Lista para Cortes'),
+        backgroundColor: const Color.fromARGB(255, 10, 0, 40),
+      ),
       drawer: const AppDrawer(),
       body: isLoading
           ? const Center(
@@ -322,8 +398,21 @@ class _GenerateCutsScreenState extends State<GenerateCutsScreen> {
             ),
           );
         },
-        label: const Text('Mostrar plano de recorrido'),
-        icon: const Icon(Icons.flag),
+        label: const Text(
+          'Mostrar plano de recorrido',
+          style: TextStyle(
+            color: Colors.white, // Color de las letras
+            fontSize: 16,
+          ),
+        ),
+        icon: const Icon(
+          Icons.flag,
+          color: Colors.white, // Color del ícono
+        ),
+        backgroundColor: Color.fromARGB(255, 10, 0, 40), // Color del botón
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10), // Bordes redondeados
+        ),
       ),
     );
   }

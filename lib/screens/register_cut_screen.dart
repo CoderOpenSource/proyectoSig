@@ -114,16 +114,44 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
     if (mounted) {
       if (response.statusCode == 200) {
         print('Corte registrado correctamente');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Corte registrado correctamente'),
-            backgroundColor: Colors.green,
-          ),
+        await showDialog(
+          context: context,
+          barrierDismissible: false, // Evitar que se cierre al tocar fuera
+          builder: (BuildContext context) {
+            return AlertDialog(
+              backgroundColor: const Color.fromARGB(255, 10, 0, 40), // Fondo
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(20), // Bordes redondeados
+              ),
+              title: Row(
+                children: const [
+                  Icon(Icons.check_circle, color: Colors.green, size: 30),
+                  SizedBox(width: 10),
+                  Text(
+                    '¡Éxito!',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+              content: const Text(
+                'Corte registrado exitosamente.\n\nEsta acción no se puede deshacer.',
+                style: TextStyle(color: Colors.white),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(
+                        context, true); // Volver a la pantalla anterior
+                  },
+                  child: const Text(
+                    'Volver',
+                    style: TextStyle(color: Colors.green),
+                  ),
+                ),
+              ],
+            );
+          },
         );
-        await Future.delayed(const Duration(seconds: 3)); // Esperar 3 segundos
-        if (mounted) {
-          Navigator.pop(context, true); // Indicar que se ha registrado el corte
-        }
       } else {
         print('Error al registrar el corte: ${response.body}');
         if (mounted) {
@@ -140,7 +168,7 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final primaryColor = Theme.of(context).primaryColor;
+    final primaryColor = Color.fromARGB(255, 10, 0, 40);
     final inputDecoration = InputDecoration(
       filled: true,
       fillColor: Colors.white,
@@ -161,6 +189,7 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Registrar Corte'),
+        backgroundColor: const Color.fromARGB(255, 10, 0, 40),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
           onPressed: () {

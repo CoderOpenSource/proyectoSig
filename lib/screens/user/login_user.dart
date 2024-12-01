@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:local_auth/local_auth.dart';
 import 'package:mapas_api/screens/loading_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
@@ -16,6 +17,8 @@ class _LoginViewState extends State<LoginView> {
   bool _obscureText = true;
   bool _isLoading = false;
   String? _error;
+
+  final LocalAuthentication auth = LocalAuthentication();
 
   Future<Map<String, String>?> validarLogin(
       String username, String password) async {
@@ -157,10 +160,10 @@ class _LoginViewState extends State<LoginView> {
         await prefs.setString('userName', name);
         await prefs.setInt('registro', registro);
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: const Text('Usuario verificado con éxito'),
+          const SnackBar(
+            content: Text('Usuario verificado con éxito'),
             backgroundColor: Colors.lightBlue,
-            duration: const Duration(seconds: 2),
+            duration: Duration(seconds: 2),
           ),
         );
 
@@ -205,6 +208,55 @@ class _LoginViewState extends State<LoginView> {
         : const SizedBox.shrink();
   }
 
+  Future<void> _handleBiometricSignIn() async {
+    final prefs = await SharedPreferences.getInstance();
+    final userName = prefs.getString('userName');
+    final accessToken = prefs.getString('accessToken');
+
+    if (userName != null && accessToken != null) {
+      // Autenticar biométricamente
+      final bool isAuthenticated = await auth.authenticate(
+        localizedReason: 'Por favor autentíquese para acceder',
+        options: const AuthenticationOptions(
+          biometricOnly: true, // Asegura que solo se usen datos biométricos
+          stickyAuth:
+              true, // Mantiene la autenticación activa mientras la app está en segundo plano
+        ),
+      );
+
+      if (isAuthenticated) {
+        // Si se autentica correctamente
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoadingScreen()),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Autenticación fallida. Inténtelo de nuevo.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
+      // Mostrar modal si no hay datos almacenados
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Datos no guardados'),
+          content: const Text(
+              'No hay datos guardados para autenticación biométrica. Por favor, inicie sesión manualmente.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -233,7 +285,7 @@ class _LoginViewState extends State<LoginView> {
                       borderRadius: BorderRadius.circular(50),
                       image: const DecorationImage(
                         image: NetworkImage(
-                            'https://res.cloudinary.com/dkpuiyovk/image/upload/v1721073252/pngwing.com_21_ks8nrm.png'),
+                            'https://res.cloudinary.com/dkpuiyovk/image/upload/v1732761492/logo_n2hfvf.webp'),
                         fit: BoxFit.fitHeight,
                       ),
                     ),
@@ -243,12 +295,12 @@ class _LoginViewState extends State<LoginView> {
                   ),
                   Center(
                     child: Text(
-                      'CorteMedidores',
+                      'Corte de Medidores',
                       style: TextStyle(
                         fontSize: 32, // Tamaño del texto
                         fontWeight: FontWeight.bold, // Grosor de la letra
-                        color:
-                            Color.fromARGB(255, 2, 40, 69), // Color del texto
+                        color: const Color.fromARGB(
+                            255, 2, 40, 69), // Color del texto
                         shadows: [
                           Shadow(
                             blurRadius: 10.0,
@@ -364,14 +416,20 @@ class _LoginViewState extends State<LoginView> {
                               ),
                             ),
                           ),
-                          const SizedBox(height: 10),
-                          Center(
-                            child: TextButton(
-                              onPressed: () {},
-                              child: const Text(
-                                "¿Has olvidado la contraseña?",
-                                style: TextStyle(
-                                    color: Colors.white, fontSize: 16),
+                          const SizedBox(height: 15),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: _handleBiometricSignIn,
+                              icon: const Icon(Icons.fingerprint,
+                                  color: Colors.white),
+                              label: const Text(
+                                "Iniciar con biométricos",
+                                style: TextStyle(color: Colors.white),
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blueGrey,
+                                padding: const EdgeInsets.all(12),
                               ),
                             ),
                           ),

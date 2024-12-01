@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mapas_api/blocs/blocs.dart';
-import 'package:mapas_api/themes/light_theme.dart';
 
 class BtnFollowUser extends StatelessWidget {
   const BtnFollowUser({super.key});
@@ -13,7 +12,7 @@ class BtnFollowUser extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
       child: CircleAvatar(
-        backgroundColor: lightUberTheme.primaryColor,
+        backgroundColor: const Color.fromARGB(255, 10, 0, 40),
         maxRadius: 25,
         child: BlocBuilder<MapBloc, MapState>(builder: (context, state) {
           return IconButton(
