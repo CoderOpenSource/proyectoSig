@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:mapas_api/blocs/blocs.dart';
-import 'package:mapas_api/helpers/cortes/database_helper.dart';
 import 'package:mapas_api/helpers/widgets_to_marker.dart';
 import 'package:mapas_api/markers/cortado_marker.dart';
 import 'package:mapas_api/models/medidor.dart';
@@ -42,14 +42,48 @@ class _MapScreen2State extends State<MapScreen2> {
   @override
   void initState() {
     super.initState();
-    locationBloc = BlocProvider.of<LocationBloc>(context);
+    _initializeLocation();
     mapBloc = BlocProvider.of<MapBloc>(context);
   }
 
-  @override
-  void dispose() {
-    locationBloc.stopFollowingUser();
-    super.dispose();
+  Future<void> _initializeLocation() async {
+    try {
+      LatLng initialLocation = await getInitialLocation();
+      BlocProvider.of<LocationBloc>(context).add(
+        OnNewUserLocationEvent(initialLocation),
+      );
+    } catch (e) {
+      print('Error obteniendo ubicación inicial: $e');
+    }
+  }
+
+  Future<LatLng> getInitialLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Verifica si los servicios de ubicación están habilitados
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('Los servicios de ubicación están deshabilitados.');
+    }
+
+    // Verifica y solicita permisos de ubicación
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Los permisos de ubicación fueron denegados.');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception(
+          'Los permisos de ubicación están denegados permanentemente.');
+    }
+
+    // Obtén la posición actual
+    final position = await Geolocator.getCurrentPosition();
+    return LatLng(position.latitude, position.longitude);
   }
 
   void _updateMarkerToCut(Medidor medidor, int index) async {
@@ -153,17 +187,6 @@ class _MapScreen2State extends State<MapScreen2> {
                             };
                           });
 
-                          // Actualizar el estado en la base de datos
-                          final dbHelper = DatabaseHelper.instance;
-                          await dbHelper.updateCortado(
-                            medidor.id,
-                            true,
-                            fechaCorte: DateTime.now()
-                                .toIso8601String(), // Registrar la fecha actual en formato ISO 8601
-                          );
-                          print(
-                              'Base de datos actualizada para medidor con ID: ${medidor.id}');
-
                           // Actualizar el marcador en el mapa
                           _updateMarkerToCut(medidor, index);
                         }
@@ -203,7 +226,13 @@ class _MapScreen2State extends State<MapScreen2> {
   Future<void> _drawRoutes() async {
     final searchBloc = BlocProvider.of<SearchBloc>(context);
 
-    LatLng? currentPosition = const LatLng(-17.776373, -63.195093);
+    LatLng? currentPosition =
+        context.read<LocationBloc>().state.lastKnownLocation;
+    if (currentPosition == null) {
+      // Maneja el caso en que la ubicación no está disponible
+      print("No se pudo obtener la ubicación actual");
+      return;
+    }
 
     List<Map<String, String>> limitedMedidores = widget.medidores.length > 25
         ? widget.medidores.sublist(0, 25)
@@ -374,10 +403,15 @@ class _MapScreen2State extends State<MapScreen2> {
       ),
       body: BlocBuilder<LocationBloc, LocationState>(
         builder: (context, locationState) {
+          if (locationState.lastKnownLocation == null) {
+            return const Center(
+              child: CircularProgressIndicator(), // Mostrar indicador de carga
+            );
+          }
           return Stack(
             children: [
               MapView(
-                initialLocation: const LatLng(-17.776373, -63.195093),
+                initialLocation: locationState.lastKnownLocation!,
                 polylines: polylines.toSet(),
                 markers: markers.toSet(),
               ),

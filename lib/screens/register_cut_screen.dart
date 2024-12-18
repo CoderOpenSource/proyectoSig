@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:image_picker/image_picker.dart';
+import 'package:mapas_api/helpers/cortes/database_helper.dart';
 import 'package:mapas_api/models/medidor.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
 
 class RegisterCutScreen extends StatefulWidget {
   final Medidor medidor;
@@ -23,6 +27,7 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
   late TextEditingController _lcorController;
   late TextEditingController _nofnController;
   late TextEditingController _appNameController;
+  File? _selectedImage; // Para almacenar la imagen seleccionada
 
   @override
   void initState() {
@@ -52,6 +57,32 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
     _nofnController.dispose();
     _appNameController.dispose();
     super.dispose();
+  }
+
+  /// Guardar la imagen en la memoria interna y devolver su ruta
+  Future<File> _saveImageLocally(File image) async {
+    final directory = await getApplicationDocumentsDirectory();
+    final fileName = 'medidor_${DateTime.now().millisecondsSinceEpoch}.jpg';
+    final filePath = '${directory.path}/$fileName';
+    final savedImage = await image.copy(filePath);
+    return savedImage;
+  }
+
+  /// Seleccionar y guardar imagen utilizando ImagePicker
+  Future<void> _pickImage(ImageSource source) async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: source);
+
+    if (pickedFile != null) {
+      final tempFile = File(pickedFile.path);
+      final savedImage = await _saveImageLocally(tempFile);
+
+      setState(() {
+        _selectedImage = savedImage; // Guardar la imagen seleccionada
+      });
+    } else {
+      print('No image selected.');
+    }
   }
 
   String buildSoapRequest({
@@ -108,20 +139,39 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
         'Content-Type': 'application/soap+xml; charset=utf-8',
         'SOAPAction': 'http://activebs.net/W3Corte_UpdateCorte',
       },
-      body: soapRequest.trim(), // Asegúrate de que no haya espacios en blanco
+      body: soapRequest.trim(),
     );
 
     if (mounted) {
       if (response.statusCode == 200) {
         print('Corte registrado correctamente');
+
+        // Actualizar la base de datos
+        final dbHelper = DatabaseHelper.instance;
+        await dbHelper.updateCortado(
+          widget.medidor.id,
+          true,
+          fechaCorte: DateTime.now().toIso8601String(),
+          imagenRuta: _selectedImage?.path, // Pasar null si no hay imagen
+        );
+
+        print(
+            'Base de datos actualizada para medidor con ID: ${widget.medidor.id}');
+        if (_selectedImage?.path != null) {
+          print('Ruta de la imagen registrada: ${_selectedImage?.path}');
+        } else {
+          print('No se seleccionó ninguna imagen para este corte.');
+        }
+
+        // Mostrar el cuadro de diálogo de éxito
         await showDialog(
           context: context,
-          barrierDismissible: false, // Evitar que se cierre al tocar fuera
+          barrierDismissible: false,
           builder: (BuildContext context) {
             return AlertDialog(
-              backgroundColor: const Color.fromARGB(255, 10, 0, 40), // Fondo
+              backgroundColor: const Color.fromARGB(255, 10, 0, 40),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20), // Bordes redondeados
+                borderRadius: BorderRadius.circular(20),
               ),
               title: Row(
                 children: const [
@@ -140,8 +190,7 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
               actions: [
                 TextButton(
                   onPressed: () {
-                    Navigator.pop(
-                        context, true); // Volver a la pantalla anterior
+                    Navigator.pop(context, true); // Devolver true al cerrar
                   },
                   child: const Text(
                     'Volver',
@@ -286,6 +335,34 @@ class _RegisterCutScreenState extends State<RegisterCutScreen> {
                 },
               ),
               const SizedBox(height: 20),
+              const Text(
+                'Por favor, selecciona una imagen:',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 10),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  TextButton.icon(
+                    onPressed: () => _pickImage(ImageSource.camera),
+                    icon: const Icon(Icons.camera),
+                    label: const Text('Cámara'),
+                  ),
+                  TextButton.icon(
+                    onPressed: () => _pickImage(ImageSource.gallery),
+                    icon: const Icon(Icons.photo_library),
+                    label: const Text('Galería'),
+                  ),
+                ],
+              ),
+              if (_selectedImage != null)
+                Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Image.file(_selectedImage!),
+                ),
+              SizedBox(
+                height: 20,
+              ),
               ElevatedButton.icon(
                 onPressed: () {
                   if (_formKey.currentState!.validate()) {

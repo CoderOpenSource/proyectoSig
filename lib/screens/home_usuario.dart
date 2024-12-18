@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 
@@ -27,13 +28,47 @@ class _MapScreenState extends State<MapScreen>
   @override
   void initState() {
     super.initState();
-    locationBloc = BlocProvider.of<LocationBloc>(context);
+    _initializeLocation();
   }
 
-  @override
-  void dispose() {
-    locationBloc.stopFollowingUser();
-    super.dispose();
+  Future<void> _initializeLocation() async {
+    try {
+      LatLng initialLocation = await getInitialLocation();
+      BlocProvider.of<LocationBloc>(context).add(
+        OnNewUserLocationEvent(initialLocation),
+      );
+    } catch (e) {
+      print('Error obteniendo ubicación inicial: $e');
+    }
+  }
+
+  Future<LatLng> getInitialLocation() async {
+    bool serviceEnabled;
+    LocationPermission permission;
+
+    // Verifica si los servicios de ubicación están habilitados
+    serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw Exception('Los servicios de ubicación están deshabilitados.');
+    }
+
+    // Verifica y solicita permisos de ubicación
+    permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw Exception('Los permisos de ubicación fueron denegados.');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw Exception(
+          'Los permisos de ubicación están denegados permanentemente.');
+    }
+
+    // Obtén la posición actual
+    final position = await Geolocator.getCurrentPosition();
+    return LatLng(position.latitude, position.longitude);
   }
 
   @override
@@ -53,6 +88,11 @@ class _MapScreenState extends State<MapScreen>
 
       body: BlocBuilder<LocationBloc, LocationState>(
         builder: (context, locationState) {
+          if (locationState.lastKnownLocation == null) {
+            return const Center(
+              child: CircularProgressIndicator(), // Mostrar indicador de carga
+            );
+          }
           return BlocBuilder<MapBloc, MapState>(
             builder: (context, mapState) {
               Map<String, Polyline> polylines = Map.from(mapState.polylines);
@@ -64,7 +104,7 @@ class _MapScreenState extends State<MapScreen>
               return Stack(
                 children: [
                   MapView(
-                    initialLocation: const LatLng(-17.776373, -63.195093),
+                    initialLocation: locationState.lastKnownLocation!,
                     polylines: polylines.values.toSet(),
                     markers: mapState.markers.values.toSet(),
                   ),

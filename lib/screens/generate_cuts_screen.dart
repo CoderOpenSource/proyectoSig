@@ -89,10 +89,11 @@ class _GenerateCutsScreenState extends State<GenerateCutsScreen> {
         </soap:Body>
       </soap:Envelope>''';
 
+    setState(() {
+      isLoading = true;
+    });
+
     try {
-      setState(() {
-        isLoading = true;
-      });
       final response = await http.post(
         Uri.parse(url),
         headers: {
@@ -103,7 +104,8 @@ class _GenerateCutsScreenState extends State<GenerateCutsScreen> {
       );
 
       if (response.statusCode == 200) {
-        parseMedidores(response.body);
+        await parseMedidores(
+            response.body); // Asegurar que se espere esta función
       } else {
         setState(() {
           responseText = 'Error: ${response.statusCode}';
@@ -116,42 +118,24 @@ class _GenerateCutsScreenState extends State<GenerateCutsScreen> {
       });
     } finally {
       setState(() {
-        isLoading = false;
+        isLoading = false; // Esto solo ocurre después de que todo termine
       });
     }
   }
 
-  void parseMedidores(String xmlString) async {
-    setState(() {
-      isLoading = true;
-    });
+  Future<void> parseMedidores(String xmlString) async {
     final dbHelper = DatabaseHelper.instance;
     final prefs = await SharedPreferences.getInstance();
 
     // Verifica si la base de datos ya fue inicializada
     final isDatabaseCreated = prefs.getBool('database_created') ?? false;
 
-    // Recuperar los cortes no cortados desde la base de datos
-    Future<void> cargarMedidoresNoCortados() async {
-      final cortesNoCortados = await dbHelper.getCortesPorEstado(false);
-      medidores = cortesNoCortados.map((corte) {
-        return corte.map((key, value) => MapEntry(key, value.toString()));
-      }).toList();
-
-      print('Medidores recuperados de la base de datos:');
-      for (var medidor in medidores) {
-        print(medidor);
-      }
-    }
-
     if (isDatabaseCreated) {
       print(
           'La base de datos ya fue creada. Recuperando cortes no cortados...');
-      await cargarMedidoresNoCortados();
+      await cargarMedidoresNoCortados(
+          dbHelper); // Recuperar medidores existentes
       filterMedidores();
-      setState(() {
-        isLoading = false;
-      });
       return;
     }
 
@@ -172,11 +156,7 @@ class _GenerateCutsScreenState extends State<GenerateCutsScreen> {
           lng != 0.0; // Filtrar medidores con coordenadas válidas
     }).toList();
 
-    print('Medidores parsed desde XML:');
     for (var medidor in medidores) {
-      print(medidor);
-
-      // Convertir el medidor a un objeto Corte
       final corte = Corte(
         id: 0, // Será autoincrementado en la base de datos
         bscocNcoc: medidor['bscocNcoc'] ?? '',
@@ -196,20 +176,28 @@ class _GenerateCutsScreenState extends State<GenerateCutsScreen> {
         fechaCorte: null, // Inicializar la fecha de corte como null
       );
 
-      // Guardar en la base de datos
       await dbHelper.insertCorte(corte.toMap());
     }
 
-    // Marcar la base de datos como creada
     await prefs.setBool('database_created', true);
 
     print(
         'Medidores guardados en la base de datos. Recuperando no cortados...');
-    await cargarMedidoresNoCortados();
-    filterMedidores(); // Filtrar los medidores si es necesario
-    setState(() {
-      isLoading = false;
-    });
+    await cargarMedidoresNoCortados(
+        dbHelper); // Recuperar medidores no cortados
+    filterMedidores(); // Filtrar los medidores
+  }
+
+  Future<void> cargarMedidoresNoCortados(DatabaseHelper dbHelper) async {
+    final cortesNoCortados = await dbHelper.getCortesPorEstado(false);
+    medidores = cortesNoCortados.map((corte) {
+      return corte.map((key, value) => MapEntry(key, value.toString()));
+    }).toList();
+
+    print('Medidores recuperados de la base de datos:');
+    for (var medidor in medidores) {
+      print(medidor);
+    }
   }
 
   void filterMedidores() {

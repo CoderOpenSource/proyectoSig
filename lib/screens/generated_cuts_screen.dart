@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mapas_api/helpers/cortes/database_helper.dart';
 import 'package:mapas_api/widgets/app_drawer.dart';
+import 'dart:io'; // Para trabajar con imágenes almacenadas localmente
+import 'package:photo_view/photo_view.dart'; // Para manejar imágenes con zoom
 
 class GeneratedCutsScreen extends StatelessWidget {
   const GeneratedCutsScreen({Key? key}) : super(key: key);
@@ -20,6 +22,40 @@ class GeneratedCutsScreen extends StatelessWidget {
     } catch (e) {
       return 'Formato de fecha inválido';
     }
+  }
+
+  void _showImageModal(BuildContext context, String imagePath) {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: Colors.black,
+          insetPadding: const EdgeInsets.all(16),
+          child: Stack(
+            children: [
+              FractionallySizedBox(
+                heightFactor: 0.7, // Limita la altura al 70%
+                child: PhotoView(
+                  imageProvider: FileImage(File(imagePath)),
+                  backgroundDecoration:
+                      const BoxDecoration(color: Colors.black),
+                ),
+              ),
+              Positioned(
+                top: 8,
+                right: 8,
+                child: IconButton(
+                  icon: const Icon(Icons.close, color: Colors.white, size: 24),
+                  onPressed: () {
+                    Navigator.of(context).pop(); // Cierra el modal
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -57,10 +93,40 @@ class GeneratedCutsScreen extends StatelessWidget {
             itemCount: cortadosMedidores.length,
             itemBuilder: (context, index) {
               final medidor = cortadosMedidores[index];
+              final String? imagenRuta = medidor['imagenRuta'];
+
               return Card(
                 margin: const EdgeInsets.all(10),
                 child: ListTile(
-                  leading: const Icon(Icons.warning, color: Colors.red),
+                  // Mostrar imagen o texto en el lado izquierdo
+                  leading: imagenRuta != null && imagenRuta.isNotEmpty
+                      ? GestureDetector(
+                          onTap: () => _showImageModal(context, imagenRuta),
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8.0),
+                            child: Image.file(
+                              File(imagenRuta),
+                              fit: BoxFit.cover,
+                              width: 50,
+                              height: 50,
+                            ),
+                          ),
+                        )
+                      : const SizedBox(
+                          width: 50,
+                          height: 50,
+                          child: Center(
+                            child: Text(
+                              'Sin imagen',
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontSize: 12,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ),
+                        ),
+                  // Información del medidor
                   title: Text(
                     medidor['dNomb'] ?? 'Nombre no disponible',
                     style: const TextStyle(
@@ -91,12 +157,13 @@ class GeneratedCutsScreen extends StatelessWidget {
                       ),
                     ],
                   ),
-                  trailing: const Column(
+                  // Mostrar texto e icono a la derecha
+                  trailing: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.warning, color: Colors.red),
-                      SizedBox(height: 4),
-                      Text(
+                      const Icon(Icons.warning, color: Colors.red),
+                      const SizedBox(height: 4),
+                      const Text(
                         'Cortado',
                         style: TextStyle(
                           color: Colors.black,

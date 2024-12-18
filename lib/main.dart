@@ -92,12 +92,10 @@ class _MyAppState extends State<MyApp> {
   Future<void> _checkAuthentication() async {
     final prefs = await SharedPreferences.getInstance();
 
-    final token = prefs.getString('accessToken');
-
     final userId = prefs.getString('userName');
 
     setState(() {
-      _isAuthenticated = token != null && token.isNotEmpty && userId != null;
+      _isAuthenticated = userId != null;
     });
   }
 

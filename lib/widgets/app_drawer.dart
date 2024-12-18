@@ -194,7 +194,6 @@ class _AppDrawerState extends State<AppDrawer> {
 
   void _logout(BuildContext context) async {
     final prefs = await SharedPreferences.getInstance();
-    prefs.remove('accessToken');
     prefs.remove('userName');
     prefs.remove('registro');
     Navigator.of(context).pushAndRemoveUntil(

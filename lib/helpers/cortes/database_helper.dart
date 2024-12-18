@@ -18,8 +18,9 @@ class DatabaseHelper {
     final path = join(dbPath, filePath);
     return await openDatabase(
       path,
-      version: 1,
+      version: 2, // Cambia la versión para soportar migraciones
       onCreate: _createDB,
+      onUpgrade: _upgradeDB, // Método para manejar migraciones
     );
   }
 
@@ -41,28 +42,36 @@ class DatabaseHelper {
       dCobc TEXT NOT NULL,
       dLotes TEXT NOT NULL,
       cortado INTEGER NOT NULL,
-      fechaCorte TEXT NULL
+      fechaCorte TEXT NULL,
+      imagenRuta TEXT NULL
     )
-  ''');
-
-    // Tabla rutas
-    await db.execute('''
-      CREATE TABLE rutas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        bsrutnrut TEXT NOT NULL,
-        bsrutdesc TEXT NOT NULL,
-        bsrutabrv TEXT NOT NULL,
-        bsruttipo TEXT NOT NULL,
-        bsrutnzon TEXT NOT NULL,
-        bsrutfcor TEXT NOT NULL,
-        bsrutcper TEXT NOT NULL,
-        bsrutstat INTEGER NOT NULL,
-        bsrutride TEXT NOT NULL,
-        dNomb TEXT NOT NULL,
-        GbzonNzon TEXT NOT NULL,
-        dNzon TEXT NOT NULL
-      )
     ''');
+
+    await db.execute('''
+    CREATE TABLE rutas (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      bsrutnrut TEXT NOT NULL,
+      bsrutdesc TEXT NOT NULL,
+      bsrutabrv TEXT NOT NULL,
+      bsruttipo TEXT NOT NULL,
+      bsrutnzon TEXT NOT NULL,
+      bsrutfcor TEXT NOT NULL,
+      bsrutcper TEXT NOT NULL,
+      bsrutstat INTEGER NOT NULL,
+      bsrutride TEXT NOT NULL,
+      dNomb TEXT NOT NULL,
+      GbzonNzon TEXT NOT NULL,
+      dNzon TEXT NOT NULL
+    )
+    ''');
+  }
+
+  Future<void> _upgradeDB(Database db, int oldVersion, int newVersion) async {
+    if (oldVersion < 2) {
+      // Agregar la columna 'imagenRuta' si no existe
+      await db.execute('ALTER TABLE cortes ADD COLUMN imagenRuta TEXT NULL');
+      print('Columna "imagenRuta" agregada a la tabla "cortes".');
+    }
   }
 
   // Métodos para la tabla cortes
@@ -73,13 +82,19 @@ class DatabaseHelper {
         conflictAlgorithm: ConflictAlgorithm.ignore);
   }
 
-  Future<int> updateCortado(int id, bool cortado, {String? fechaCorte}) async {
+  Future<int> updateCortado(
+    int id,
+    bool cortado, {
+    String? fechaCorte,
+    String? imagenRuta,
+  }) async {
     final db = await database;
     return await db.update(
       'cortes',
       {
         'cortado': cortado ? 1 : 0,
-        'fechaCorte': fechaCorte, // Actualiza la fecha de corte
+        'fechaCorte': fechaCorte,
+        'imagenRuta': imagenRuta,
       },
       where: 'id = ?',
       whereArgs: [id],
@@ -159,8 +174,6 @@ class DatabaseHelper {
     );
   }
 
-  // Métodos avanzados para rutas
-
   Future<List<Map<String, dynamic>>> getRutasAvanzadas({
     String? columna,
     String? valor,
@@ -177,7 +190,6 @@ class DatabaseHelper {
     );
   }
 
-  // Nuevo método: Obtener cortes cortados
   Future<List<Map<String, dynamic>>> getCortesCortados() async {
     final db = await database;
     return await db.query(

@@ -210,10 +210,9 @@ class _LoginViewState extends State<LoginView> {
 
   Future<void> _handleBiometricSignIn() async {
     final prefs = await SharedPreferences.getInstance();
-    final userName = prefs.getString('userName');
     final accessToken = prefs.getString('accessToken');
 
-    if (userName != null && accessToken != null) {
+    if (accessToken != null) {
       // Autenticar biométricamente
       final bool isAuthenticated = await auth.authenticate(
         localizedReason: 'Por favor autentíquese para acceder',

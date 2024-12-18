@@ -50,21 +50,7 @@ class MenuCortesScreen extends StatelessWidget {
                   );
                 },
               ),
-              const SizedBox(height: 20),
-              _buildBigCard(
-                context,
-                title: "Exportar cortes",
-                subtitle: "Al servidor",
-                icon: Icons.upload,
-                color: Colors.green,
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (context) => const LoadingScreen(),
-                    ),
-                  );
-                },
-              ),
+
               const SizedBox(height: 20),
               const Text(
                 "Coosiv R.L.",
